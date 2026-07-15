@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Particle Mesh Network</title>
+    <style>
+        /* Reset default browser margins and padding */
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
+        
+        body {
+            background-color: #111116; /* Deep dark background */
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #instruction {
+            position: absolute;
+            top: 25px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            pointer-events: none;
+            font-size: 15px;
+            letter-spacing: 1.5px;
+            z-index: 10;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="instruction">Move cursor to pull the mesh. Click to burst elements.</div>
+    <canvas id="webCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("webCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Scale canvas viewport dynamically
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particlesArray = [];
+        const maxParticles = 120; // Maximum active particles on viewport
+
+        // Initialize mouse state configuration matrix
+        const mouse = {
+            x: null,
+            y: null,
+            radius: 180 // Vector collision attraction limit
+        };
+
+        window.addEventListener("mousemove", function(event) {
+            mouse.x = event.clientX;
+            mouse.y = event.clientY;
+        });
+
+        window.addEventListener("mouseout", function() {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        // Trigger dynamic particle burst on mouse click
+        window.addEventListener("click", function() {
+            for (let i = 0; i < 15; i++) {
+                particlesArray.push(new Particle(mouse.x, mouse.y));
+                if (particlesArray.length > maxParticles + 30) {
+                    particlesArray.shift();
+                }
+            }
+        });
+
+        // Blueprints model tracking single node metrics
+        class Particle {
+            constructor(x, y) {
+                this.x = x || Math.random() * canvas.width;
+                this.y = y || Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 1; 
+                this.speedX = Math.random() * 2 - 1; 
+                this.speedY = Math.random() * 2 - 1; 
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                // Handle canvas boundary wall collisions
+                if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+            }
+
+            draw() {
+                ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Initialize node setup array matrix map
+        function init() {
+            particlesArray = [];
+            for (let i = 0; i < maxParticles; i++) {
+                particlesArray.push(new Particle());
+            }
+        }
+
+        // Render network thread layout connections based on vector proximity
+        function connectLines() {
+            let opacity = 1;
+            for (let a = 0; a < particlesArray.length; a++) {
+                for (let b = a; b < particlesArray.length; b++) {
+                    let dx = particlesArray[a].x - particlesArray[b].x;
+                    let dy = particlesArray[a].y - particlesArray[b].y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    // Connect lines if nodes are close to each other
+                    if (distance < 100) {
+                        opacity = 1 - (distance / 100);
+                        ctx.strokeStyle = `rgba(100, 180, 255, ${opacity * 0.25})`;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                        ctx.stroke();
+                    }
+                }
+
+                // Render dynamic pull tracking cursor interactions
+                if (mouse.x != null && mouse.y != null) {
+                    let dxMouse = particlesArray[a].x - mouse.x;
+                    let dyMouse = particlesArray[a].y - mouse.y;
+                    let mouseDist = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse);
+
+                    if (mouseDist < mouse.radius) {
+                        opacity = 1 - (mouseDist / mouse.radius);
+                        ctx.strokeStyle = `rgba(0, 210, 255, ${opacity * 0.4})`;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(mouse.x, mouse.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        // Infinite rendering animation pipeline system loops
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+                particlesArray[i].draw();
+            }
+            connectLines();
+            requestAnimationFrame(animate);
+        }
+
+        // Maintain viewport scaling on browser screen adjustments
+        window.addEventListener("resize", function() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            init();
+        });
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
